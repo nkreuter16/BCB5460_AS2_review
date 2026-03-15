@@ -206,9 +206,139 @@ OutputFile(teosinte_p)
 
 ## Visualization
 
-Distribution of SNPs on and across chromosomes
+Distribution of SNPs on and across chromosomes. Note that this is the total number of SNP positions that were investigated and not the actual number of SNPs.
 ```{r}
+NofSNP <- join_maize %>% filter(!.[[2]] %in% c("Chromosome")) %>% 
+  ggplot(aes(x=.[[2]])) + geom_bar(fill="darkgreen") + labs(title="Number of SNPs per Chromosome",x="Chromosome number",y="Counts") + geom_text(aes(label = after_stat(count)), stat = "count", vjust = -0.5)
 
+plot(NofSNP)
+ggsave("Graphs/NofSNP.png",NofSNP)
+```
 
+Compare SNPs in maize and teosinte. _It seems that all SNP positions are truly polymorphic for both maize and teosinte that the graphs are the same. I will keep working on this_
+```{r}
+# create a new data frame by copying the original and removing header, so all changes made in visualization is not changing the original data
+join_maize_visual <- join_maize %>% filter(!.[[2]] %in% c("Chromosome"))
+join_maize_visual[join_maize_visual == "?/?"] <- NA 
+
+df <- join_maize_visual %>%
+  rowwise() %>%
+  mutate(is_SNP = n_distinct(c_across(4:ncol(join_maize_visual)), na.rm = TRUE) == 1) %>%
+  ungroup()
+
+maize_true_snp <- df %>% filter(is_SNP %in% c("FALSE")) %>%
+  count(.[[2]]) %>% ggplot(aes(x=factor(.[[1]]),y=n)) + geom_col(fill="lightblue") + labs(title="SNP sites per Chromosome in maize",x="Chromosome number",y="Counts")
+
+plot(maize_true_snp)
+ggsave("Graphs/maize_true_snp.png",maize_true_snp)
+
+# repeat for teosinte
+join_teosinte_visual <- join_teosinte %>% filter(!.[[2]] %in% c("Chromosome"))
+join_teosinte_visual[join_teosinte_visual == "?/?"] <- NA 
+
+df <- join_teosinte_visual %>%
+  rowwise() %>%
+  mutate(is_SNP = n_distinct(c_across(4:ncol(join_teosinte_visual)), na.rm = TRUE) == 1) %>%
+  ungroup()
+
+teosinte_true_snp <- df %>% filter(is_SNP %in% c("FALSE")) %>%
+  count(.[[2]]) %>% ggplot(aes(x=factor(.[[1]]),y=n)) + geom_col(fill="lightyellow") + labs(title="SNP sites per Chromosome in teosinte",x="Chromosome number",y="Counts")
+
+plot(teosinte_true_snp)
+ggsave("Graphs/teosinte_true_snp.png",teosinte_true_snp)
+
+```
+
+Missing data and amount of heterozygosity
+```{r}
+# convert to long format
+long_maize <- join_maize_visual %>% pivot_longer(cols = 4:ncol(join_maize_visual),
+               names_to = "sample_ID",
+               values_to = "genotype")
+
+# classify genotype type to missing, homozygous, and heterozygous 
+long_maize <- long_maize %>%
+  mutate(genotype_type = case_when(is.na(genotype) ~ "missing",genotype %in%
+                                     c("A/A","T/T","C/C","G/G") ~ "homozygous", 
+                                   TRUE ~ "heterozygous"))
+
+# calculate proportion of genotype types in each sample
+genotype_prop <- long_maize %>%
+  group_by(sample_ID, genotype_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(sample_ID) %>%
+  mutate(prop = n / sum(n))
+
+# plot genotype type proportion per sample
+type_sample_maize <- ggplot(genotype_prop, aes(x = sample_ID, y = prop, fill = genotype_type)) +
+  geom_col() +
+  labs(title = "Maize: genotype type proportion per sample", x = "Sample_ID",
+       y = "Proportion",
+       fill = "Genotype")
+plot(type_sample_maize)
+ggsave("Graphs/type_sample_maize.png",type_sample_maize)
+
+# plot genotype type proportion per chromosome across samples
+colnames(long_maize)[2] <- "chromosome"
+genotype_prop2 <- long_maize %>%
+  group_by(chromosome, genotype_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(chromosome) %>%
+  mutate(prop2 = n / sum(n))
+
+type_chr_maize <- ggplot(genotype_prop2, aes(x = chromosome, y = prop2, fill = genotype_type)) +
+  geom_col() +
+  labs(title = "Maize: genotype type proportion per chromosome",x = "Chromosome",
+       y = "Proportion",
+       fill = "Genotype")
+plot(type_chr_maize)
+ggsave("Graphs/type_chr_maize.png",type_chr_maize)
+
+```
+
+Repeat for teosinte
+```{r}
+# convert to long format
+long_teosinte <- join_teosinte_visual %>% pivot_longer(cols = 4:ncol(join_teosinte_visual),
+               names_to = "sample_ID",
+               values_to = "genotype")
+
+# classify genotype type to missing, homozygous, and heterozygous 
+long_teosinte <- long_teosinte %>%
+  mutate(genotype_type = case_when(is.na(genotype) ~ "missing",genotype %in%
+                                     c("A/A","T/T","C/C","G/G") ~ "homozygous", 
+                                   TRUE ~ "heterozygous"))
+
+# calculate proportion of genotype types in each sample
+genotype_prop <- long_teosinte %>%
+  group_by(sample_ID, genotype_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(sample_ID) %>%
+  mutate(prop = n / sum(n))
+
+# plot genotype type proportion per sample
+type_sample_teosinte <- ggplot(genotype_prop, aes(x = sample_ID, y = prop, 
+                                                  fill = genotype_type)) + geom_col() +
+  labs(title = "Teosinte: genotype type proportion per sample", x = "Sample_ID",
+       y = "Proportion",
+       fill = "Genotype")
+plot(type_sample_teosinte)
+ggsave("Graphs/type_sample_teosinte.png",type_sample_teosinte)
+
+# plot genotype type proportion per chromosome across samples
+colnames(long_teosinte)[2] <- "chromosome"
+genotype_prop2 <- long_teosinte %>%
+  group_by(chromosome, genotype_type) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(chromosome) %>%
+  mutate(prop2 = n / sum(n))
+
+type_chr_teosinte <- ggplot(genotype_prop2, aes(x = chromosome, y = prop2, 
+                                                fill = genotype_type)) + geom_col() +
+  labs(title = "Teosinte: genotype type proportion per chromosome",x = "Chromosome",
+       y = "Proportion",
+       fill = "Genotype")
+plot(type_chr_teosinte)
+ggsave("Graphs/type_chr_teosinte.png",type_chr_teosinte)
 
 ```

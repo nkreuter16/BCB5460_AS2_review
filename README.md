@@ -13,5 +13,5 @@
       10 files (1 for each chromosome) with SNPs ordered based on decreasing position values and with missing data encoded by this symbol: -
       1 file with all SNPs with unknown positions in the genome
       1 file with all SNPs with multiple positions in the genome
-3. All graphs generated from the visualization section in assignment is in the `Graphs` director
+3. All graphs generated from the visualization section in assignment is in the `Graphs` directory
 4. The R script used to generate all output files and graphs is `R_AS.Rmd`
